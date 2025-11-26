@@ -1,0 +1,88 @@
+# Assignment 4: Banknote Authentication – Logistic Regression vs Decision Tree
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_curve,
+    auc
+)
+
+# 1. Load dataset
+# UCI banknote: columns usually = variance, skewness, curtosis, entropy, class
+cols = ["variance", "skewness", "curtosis", "entropy", "class"]
+df = pd.read_csv("data_banknote_authentication.txt", header=None, names=cols)
+
+X = df.drop("class", axis=1)
+y = df["class"]
+
+print(df.head())
+print("\nClass distribution:\n", y.value_counts())
+
+# 2. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# 3. Scaling for logistic regression
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# 4. Models
+log_reg = LogisticRegression(max_iter=1000)
+dt = DecisionTreeClassifier(max_depth=None, random_state=42)
+
+log_reg.fit(X_train_scaled, y_train)
+dt.fit(X_train, y_train)  # trees don't need scaling
+
+def evaluate(name, model, X_tr, X_te):
+    y_pred = model.predict(X_te)
+    cm = confusion_matrix(y_test, y_pred)
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    
+    print(f"\n{name}")
+    print("Confusion Matrix:\n", cm)
+    print(f"Accuracy:  {acc:.3f}")
+    print(f"Precision: {prec:.3f}")
+    print(f"Recall:    {rec:.3f}")
+    print(f"F1-score:  {f1:.3f}")
+    print("Classification report:\n", classification_report(y_test, y_pred))
+
+evaluate("Logistic Regression", log_reg, X_train_scaled, X_test_scaled)
+evaluate("Decision Tree", dt, X_train, X_test)
+
+# 5. ROC & AUC
+y_prob_log = log_reg.predict_proba(X_test_scaled)[:, 1]
+y_prob_dt = dt.predict_proba(X_test)[:, 1]
+
+fpr_log, tpr_log, _ = roc_curve(y_test, y_prob_log)
+fpr_dt, tpr_dt, _ = roc_curve(y_test, y_prob_dt)
+
+auc_log = auc(fpr_log, tpr_log)
+auc_dt = auc(fpr_dt, tpr_dt)
+
+plt.figure()
+plt.plot(fpr_log, tpr_log, label=f"Logistic (AUC = {auc_log:.3f})")
+plt.plot(fpr_dt, tpr_dt, label=f"Decision Tree (AUC = {auc_dt:.3f})")
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curves – Banknote Authentication")
+plt.legend()
+plt.show()
+
+# In report: Compare AUC + F1; pick the better model and explain.

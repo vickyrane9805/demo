@@ -1,0 +1,89 @@
+import pandas as pd
+data=pd.read_csv('Mall_Customers.csv')
+data.shape
+data.columns
+X=data.iloc[:,[3,4]]
+X.head()
+from sklearn.cluster import KMeans
+cls=KMeans(n_clusters=3,random_state=0)
+cls.fit_predict(X)
+cls.inertia_
+
+labels=cls.fit_predict(X)
+plt.xlabel('Annual Income')
+plt.ylabel('Spending Score')
+plt.scatter(X.iloc[:,0],X.iloc[:,1],c=labels,cmap='rainbow')
+
+sse=[]
+for k in range(1,16):
+    cls=KMeans(n_clusters=k,random_state=0)
+    cls.fit_predict(X)
+    sse.append(cls.inertia_)
+
+sse
+
+import matplotlib.pyplot as plt
+
+plt.xlabel('Value of K')
+plt.ylabel('SSE')
+plt.plot(range(1,16),sse,marker='.')
+
+
+
+from sklearn.metrics import silhouette_score
+
+silh=[]
+for k in range(2,16):
+    cls=KMeans(n_clusters=k,random_state=0)
+    labels=cls.fit_predict(X)
+    score=silhouette_score(X,labels)
+    silh.append(score)
+
+plt.xlabel('Value of K')
+plt.ylabel('Silhoutte Score')
+plt.bar(range(2,16),silh)
+
+silh.index(max(silh))+2
+
+cls=KMeans(n_clusters=5,random_state=0)
+
+labels=cls.fit_predict(X)
+
+set(labels)
+
+labels
+
+cls.inertia_
+
+cls.cluster_centers_
+
+centers=cls.cluster_centers_
+
+plt.figure(figsize=(16,9))
+
+plt.xlabel('Annual Income')
+plt.ylabel('Spending Score')
+plt.scatter(X.iloc[:,0],X.iloc[:,1],c=labels,cmap='rainbow')
+
+plt.scatter(centers[:,0],centers[:,1],s=200,color='red')
+
+plt.xlabel('Annual Income')
+plt.ylabel('Spending Score')
+plt.scatter(X.iloc[:,0],X.iloc[:,1],c=labels,cmap='rainbow')
+plt.scatter(centers[:,0],centers[:,1],s=200,color='red')
+
+data[labels==0]
+
+data[labels==1]
+
+data[labels==2]
+
+data[labels==3]
+
+data[labels==4]
+
+data[labels==4].to_csv('Mall_Customers_Four.csv')
+
+cust=[[30,73]]
+
+cls.predict(cust)[0]

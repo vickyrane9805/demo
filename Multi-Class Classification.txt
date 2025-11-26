@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+
+# 1. Load dataset
+df = pd.read_csv('wine-class.csv')   # assumes 'class' is the target column
+
+X = df.drop(columns=['class'])
+y = df['class']
+
+print("Input samples:\n", X.head())
+print("\nOutput samples:\n", y.head())
+print("\nOriginal class distribution:\n", y.value_counts())
+
+# 2. Train–test split (keep stratify to preserve class ratios)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y
+)
+
+# 3. Handle imbalance using SMOTE on training data
+smote = SMOTE(random_state=42)
+X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+
+print("\nResampled class distribution (after SMOTE):\n",
+      pd.Series(y_train_res).value_counts().sort_index())
+
+# 4. Decision Tree model
+dt = DecisionTreeClassifier(
+    criterion='gini',     # or 'entropy'
+    max_depth=4,          # keep tree small & readable
+    random_state=42
+)
+
+dt.fit(X_train_res, y_train_res)
+
+# 5. Evaluation on test set
+y_pred = dt.predict(X_test)
+
+print("\nAccuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# 6. Plot the decision tree
+plt.figure(figsize=(16, 10))
+plot_tree(
+    dt,
+    feature_names=X.columns,
+    class_names=[str(c) for c in sorted(y.unique())],
+    filled=True,
+    rounded=True,
+    fontsize=8
+)
+plt.title("Decision Tree for Wine Classification")
+plt.show()
