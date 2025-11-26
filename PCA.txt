@@ -1,0 +1,73 @@
+# Assignment 7: PCA + Clustering – Movies; PCA – House Prices
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+
+# ---------- Part A: Movies dataset (PCA + KMeans) ----------
+
+movies = pd.read_csv("movies.csv")
+
+# Example numeric features: ratings, votes, duration, budget, revenue etc.
+movie_features = ["rating", "votes", "duration", "budget", "revenue"]
+X_movies = movies[movie_features].dropna()
+
+# 1. Scale
+scaler = StandardScaler()
+X_movies_scaled = scaler.fit_transform(X_movies)
+
+# 2. PCA (reduce to 2 or 3 components for visualization)
+pca = PCA(n_components=2)
+movies_pcs = pca.fit_transform(X_movies_scaled)
+
+print("Explained variance ratio (movies):", pca.explained_variance_ratio_)
+
+# 3. KMeans on PCs
+kmeans_movies = KMeans(n_clusters=4, random_state=42, n_init=10)
+movie_clusters = kmeans_movies.fit_predict(movies_pcs)
+
+# Attach to dataframe
+movies["PC1"] = movies_pcs[:, 0]
+movies["PC2"] = movies_pcs[:, 1]
+movies["Cluster"] = movie_clusters
+
+plt.figure()
+for c in movies["Cluster"].unique():
+    subset = movies[movies["Cluster"] == c]
+    plt.scatter(subset["PC1"], subset["PC2"], label=f"Cluster {c}", alpha=0.6)
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.title("Movies – PCA + KMeans Clusters")
+plt.legend()
+plt.show()
+
+# In report: explain that PCA reduces dimensionality, removes noise,
+# and often improves clustering behavior & visualization.
+
+# ---------- Part B: PCA on House Price dataset ----------
+
+house = pd.read_csv("house_price.csv")
+
+# Example numeric features
+house_features = ["Sqft", "Bedrooms", "Bathrooms", "Age", "LocationScore"]
+X_house = house[house_features].dropna()
+
+scaler_house = StandardScaler()
+X_house_scaled = scaler_house.fit_transform(X_house)
+
+pca_house = PCA(n_components=2)
+house_pcs = pca_house.fit_transform(X_house_scaled)
+
+print("Explained variance ratio (house):", pca_house.explained_variance_ratio_)
+
+plt.figure()
+plt.scatter(house_pcs[:, 0], house_pcs[:, 1], alpha=0.6)
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.title("House Features – First Two Principal Components")
+plt.show()
+
+# In report: mention how much variance is captured, and that PCA can be
+# used before regression/clustering to reduce multicollinearity and dimensionality.

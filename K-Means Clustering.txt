@@ -1,0 +1,62 @@
+# Assignment 6: K-Means Clustering – Customer Segmentation
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# 1. Load dataset
+df = pd.read_csv("customers.csv")
+print(df.head())
+print(df.describe())
+
+# Example features (change for your dataset):
+# age, annual income, and spending score etc.
+feature_cols = ["Age", "Annual_Income", "Spending_Score"]
+X = df[feature_cols].dropna()
+
+# 2. Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 3. Elbow method (within-cluster sum of squares = inertia)
+inertias = []
+sil_scores = []
+K_range = range(2, 11)
+
+for k in K_range:
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    kmeans.fit(X_scaled)
+    inertias.append(kmeans.inertia_)
+    
+    # Silhouette score
+    labels = kmeans.labels_
+    sil = silhouette_score(X_scaled, labels)
+    sil_scores.append(sil)
+
+plt.figure()
+plt.plot(K_range, inertias, marker="o")
+plt.xlabel("Number of clusters K")
+plt.ylabel("Inertia (WCSS)")
+plt.title("Elbow Method")
+plt.show()
+
+plt.figure()
+plt.plot(K_range, sil_scores, marker="o")
+plt.xlabel("Number of clusters K")
+plt.ylabel("Silhouette Score")
+plt.title("Silhouette Method")
+plt.show()
+
+# 4. Choose best K (manually from plots; assume K=4 here)
+best_k = 4
+kmeans_final = KMeans(n_clusters=best_k, random_state=42, n_init=10)
+df["Cluster"] = kmeans_final.fit_predict(X_scaled)
+
+print("\nCluster counts:\n", df["Cluster"].value_counts())
+print(df.groupby("Cluster")[feature_cols].mean())
+
+# In report:
+# - Explain what elbow and silhouette methods are.
+# - Interpret clusters in terms of age/income/spending patterns.
