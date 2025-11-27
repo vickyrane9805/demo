@@ -8,45 +8,49 @@ from sklearn.metrics import (
     confusion_matrix, precision_score, recall_score,
     f1_score, roc_auc_score
 )
+from sklearn.model_selection import train_test_split
 
+# ------------------------------
 # 1. Load dataset
+# ------------------------------
 df = pd.read_csv("creditcard.csv")
-print(df.head())
-print("\nClass distribution:\n", df["Class"].value_counts())  # 1 = fraud, 0 = normal
 
+print("First 5 rows:")
+print(df.head())
+
+print("\nClass distribution (0 = normal, 1 = fraud):")
+print(df["Class"].value_counts())
+
+# Features and target
 X = df.drop("Class", axis=1)
 y = df["Class"]
 
-# 2. Scaling
+# ------------------------------
+# 2. Train–test split
+# ------------------------------
+# Stratify to keep same fraud ratio in train and test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.3,
+    random_state=42,
+    stratify=y
+)
+
+print("\nTrain size:", X_train.shape[0])
+print("Test size:", X_test.shape[0])
+
+# ------------------------------
+# 3. Scaling (fit on train, apply to both)
+# ------------------------------
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# For unsupervised models, we train only on NORMAL (Class = 0) data
+X_train_norm = X_train_scaled[y_train == 0]
 
 # ------------------------------
-# 3. One-Class SVM (simplest algo)
-# ------------------------------
-svm = OneClassSVM(
-    kernel='rbf',
-    nu=0.01,         # proportion of anomalies expected
-    gamma='scale'
-)
-
-svm.fit(X_scaled)
-y_pred_svm = svm.predict(X_scaled)
-# Convert output: -1 → fraud, 1 → normal
-y_pred_svm = (y_pred_svm == -1).astype(int)
-
-# ------------------------------
-# 4. Local Outlier Factor
-# ------------------------------
-lof = LocalOutlierFactor(
-    n_neighbors=20,
-    contamination=0.001  # approx % fraud
-)
-y_pred_lof = lof.fit_predict(X_scaled)
-y_pred_lof = (y_pred_lof == -1).astype(int)
-
-# ------------------------------
-# 5. Evaluation
+# 4. Evaluation function
 # ------------------------------
 def evaluate(name, y_true, y_pred, scores=None):
     cm = confusion_matrix(y_true, y_pred)
@@ -55,7 +59,8 @@ def evaluate(name, y_true, y_pred, scores=None):
     f1 = f1_score(y_true, y_pred, zero_division=0)
 
     print(f"\n===== {name} =====")
-    print("Confusion Matrix:\n", cm)
+    print("Confusion Matrix:")
+    print(cm)
     print(f"Precision: {prec:.4f}")
     print(f"Recall:    {rec:.4f}")
     print(f"F1-score:  {f1:.4f}")
@@ -64,10 +69,45 @@ def evaluate(name, y_true, y_pred, scores=None):
         auc = roc_auc_score(y_true, scores)
         print(f"ROC-AUC:   {auc:.4f}")
 
-# One-Class SVM gives decision_function scores
-svm_scores = -svm.decision_function(X_scaled)
-evaluate("One-Class SVM", y, y_pred_svm, scores=svm_scores)
+# ------------------------------
+# 5. One-Class SVM
+# ------------------------------
+svm = OneClassSVM(
+    kernel='rbf',
+    nu=0.01,       # expected proportion of anomalies
+    gamma='scale'
+)
 
-# LOF anomaly scores
-lof_scores = -lof.negative_outlier_factor_
-evaluate("Local Outlier Factor", y, y_pred_lof, scores=lof_scores)
+# Fit only on normal training data
+svm.fit(X_train_norm)
+
+# Predict on test data
+y_pred_svm = svm.predict(X_test_scaled)
+# Convert: -1 -> fraud (1), 1 -> normal (0)
+y_pred_svm = (y_pred_svm == -1).astype(int)
+
+# Scores for ROC-AUC (higher = more anomalous)
+svm_scores = -svm.decision_function(X_test_scaled)
+
+evaluate("One-Class SVM", y_test, y_pred_svm, scores=svm_scores)
+
+# ------------------------------
+# 6. Local Outlier Factor (novelty detection)
+# ------------------------------
+lof = LocalOutlierFactor(
+    n_neighbors=20,
+    contamination=0.001,  # approx % fraud
+    novelty=True          # allow .predict() and .score_samples() on new data
+)
+
+# Fit only on normal training data
+lof.fit(X_train_norm)
+
+# Predict on test data
+y_pred_lof = lof.predict(X_test_scaled)
+y_pred_lof = (y_pred_lof == -1).astype(int)
+
+# Anomaly scores for ROC-AUC (higher = more anomalous)
+lof_scores = -lof.score_samples(X_test_scaled)
+
+evaluate("Local Outlier Factor", y_test, y_pred_lof, scores=lof_scores)
